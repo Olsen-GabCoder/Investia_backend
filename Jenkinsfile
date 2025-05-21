@@ -58,7 +58,8 @@ pipeline {
             post {
                 always {
                     echo 'Publishing test results...'
-                    junit étapes: [[allowEmptyResults: true, testResults: 'target/surefire-reports/**/*.xml']]
+                    // LIGNE CORRIGÉE ICI :
+                    junit steps: [[allowEmptyResults: true, testResults: 'target/surefire-reports/**/*.xml']]
                 }
             }
         }
@@ -140,12 +141,18 @@ pipeline {
                             # ATTENTION: Assure-toi que les variables SPRING_..._SECRET sont bien les valeurs et non les ID
                             echo MYSQL_DATABASE=investiadb > .env
                             echo MYSQL_USER=investiauser >> .env # Ou $MYSQL_USER_SECRET si tu le passes de Jenkins
-                            echo MYSQL_PASSWORD=${MYSQL_PASSWORD_SECRET_VALUE_FROM_JENKINS} >> .env # Récupère la valeur
-                            echo MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD_SECRET_VALUE_FROM_JENKINS} >> .env
+                            # Pour récupérer la valeur des credentials de type secret text ou username/password:
+                            # Si Username/Password, SPRING_MAIL_USERNAME_SECRET sera le username, SPRING_MAIL_USERNAME_SECRET_USR pour username, SPRING_MAIL_USERNAME_SECRET_PSW pour password
+                            # Si Secret text, SPRING_MAIL_USERNAME_SECRET sera le contenu du secret.
+                            # Pour les variables d'environnement dans sh, Jenkins les expose.
+                            # Vérifie la documentation Jenkins pour la syntaxe exacte des credentials.
+                            # Exemple simplifié, tu devras adapter :
+                            echo MYSQL_PASSWORD=${env.MYSQL_PASSWORD_SECRET_VALUE_FROM_JENKINS} >> .env
+                            echo MYSQL_ROOT_PASSWORD=${env.MYSQL_ROOT_PASSWORD_SECRET_VALUE_FROM_JENKINS} >> .env
 
-                            echo SPRING_MAIL_USERNAME=${SPRING_MAIL_USERNAME_SECRET} >> .env
-                            echo SPRING_MAIL_PASSWORD=${SPRING_MAIL_PASSWORD_SECRET} >> .env
-                            echo STRIPE_KEY_SECRET=${STRIPE_KEY_SECRET_VAL} >> .env
+                            echo SPRING_MAIL_USERNAME=${env.SPRING_MAIL_USERNAME_SECRET} >> .env
+                            echo SPRING_MAIL_PASSWORD=${env.SPRING_MAIL_PASSWORD_SECRET} >> .env
+                            echo STRIPE_KEY_SECRET=${env.STRIPE_KEY_SECRET_VAL} >> .env
                             # Ajoute d'autres variables d'environnement nécessaires
 
                             echo '--- Pulling latest application image ---';
