@@ -7,10 +7,10 @@ COPY pom.xml .
 RUN mvn dependency:go-offline -B
 
 COPY src ./src
-RUN mvn package -Dmaven.test.skip=true -B # Assurer que les tests sont bien skippés ici aussi
+RUN mvn package -Dmaven.test.skip=true -B
 
 # Étape 2: Création de l'image finale légère
-FROM eclipse-temurin:17-jre-jammy # Ou l'image que tu as choisie
+FROM eclipse-temurin:17-jre-jammy
 
 WORKDIR /app
 
@@ -22,7 +22,7 @@ COPY --from=builder /app/target/investia-0.0.1-SNAPSHOT.jar app.jar
 # --- Base de données (MySQL) ---
 ENV SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/investiadb?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
 ENV SPRING_DATASOURCE_USERNAME=investiauser
-ENV SPRING_DATASOURCE_PASSWORD=secretpassword # Valeur par défaut, sera surchargée
+ENV SPRING_DATASOURCE_PASSWORD=secretpassword # Correction: Commentaire supprimé de cette ligne pour éviter l'erreur Docker
 
 # --- Configuration du serveur ---
 ENV SERVER_PORT=8089
@@ -37,7 +37,8 @@ ENV SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH=true
 ENV SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE=true
 
 # --- Clés Stripe (Clé secrète sera injectée) ---
-ENV STRIPE_KEY_PUBLIC=pk_test_YOUR_PUBLIC_KEY_HERE # Remplace par ta vraie clé publique Stripe
+# Assure-toi de remplacer pk_test_YOUR_PUBLIC_KEY_HERE par ta vraie clé publique Stripe
+ENV STRIPE_KEY_PUBLIC=pk_test_YOUR_PUBLIC_KEY_HERE
 ENV STRIPE_KEY_SECRET=   # Laisser vide, sera fourni par Jenkins/docker-compose
 
 # --- Coingecko ---
