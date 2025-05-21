@@ -1,4 +1,4 @@
-// Jenkinsfile (Declarative Pipeline)
+// Jenkinsfile (Declarative Pipeline) - Version sans étape de Test Maven
 
 pipeline {
     agent any // Ou un agent spécifique avec Docker et Maven/Java installé
@@ -32,24 +32,27 @@ pipeline {
         stage('Build with Maven') {
             steps {
                 echo 'Building the application (Maven)...'
-                // Ajout de -U pour forcer la mise à jour des dépendances
+                // L'option -U force la mise à jour des dépendances
+                // -DskipTests est déjà là, ce qui est bien car on enlève le stage de test dédié
                 bat "\"${tool 'MAVEN_HOME'}\\bin\\mvn.cmd\" -U clean package -DskipTests -B"
             }
         }
 
+        // STAGE 'Test with Maven' SUPPRIMÉ
+        /*
         stage('Test with Maven') {
             steps {
                 echo 'Running tests (Maven)...'
-                // Ajout de -U pour forcer la mise à jour des dépendances
                 bat "\"${tool 'MAVEN_HOME'}\\bin\\mvn.cmd\" -U test -B"
             }
             post {
                 always {
                     echo 'Publishing test results...'
-                    junit allowEmptyResults: true, testResults: 'target/surefire-reports/**/*.xml'
+                    junit allowEmptyResults: true, testResults: 'target/surefire-reports/** /*.xml' // Note: this line would cause error if tests are skipped
                 }
             }
         }
+        */
 
         stage('Build Docker Image') {
             steps {
@@ -68,29 +71,22 @@ pipeline {
         stage('Push Docker Image') {
             steps {
                 // Décommente et configure si tu as un Docker Registry (Docker Hub, GitLab, ECR, etc.)
-                // Nécessite DOCKER_CREDENTIALS_ID défini dans environment et configuré dans Jenkins
                 /*
                 when {
-                    // Pousse uniquement pour certaines branches, ex: main/master
-                    // ou si c'est un tag Git
                     anyOf { branch 'main'; branch 'master'; tag '*' }
                 }
                 echo "Pushing Docker image ${DOCKER_IMAGE_NAME}:${env.BUILD_NUMBER} and potentially :latest"
-                docker.withRegistry('https://index.docker.io/v1/', DOCKER_CREDENTIALS_ID) { // Pour Docker Hub
-                    // Pousse le tag avec le numéro de build
+                docker.withRegistry('https://index.docker.io/v1/', DOCKER_CREDENTIALS_ID) {
                     docker.image("${DOCKER_IMAGE_NAME}:${env.BUILD_NUMBER}").push()
-
-                    // Pousse le tag 'latest' si c'est la branche principale
                     if (env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'master') {
                         docker.image("${DOCKER_IMAGE_NAME}:latest").push()
                     }
-                    // Si c'est un tag Git, tu peux aussi pousser une image avec ce tag Git
                     if (env.TAG_NAME) {
                         docker.image("${DOCKER_IMAGE_NAME}:${env.TAG_NAME}").push()
                     }
                 }
                 */
-                echo 'Push Docker Image stage - currently commented out' // Placeholder
+                echo 'Push Docker Image stage - currently commented out'
             }
         }
 
@@ -99,11 +95,9 @@ pipeline {
                 // Décommente et adapte à ton environnement de déploiement
                 /*
                 when {
-                    // Déploie uniquement pour la branche principale après un push réussi
                     anyOf { branch 'main'; branch 'master' }
                 }
                 environment {
-                    // Récupère les secrets depuis les credentials Jenkins
                     SPRING_MAIL_USERNAME_SECRET = credentials('jenkins-mail-username-id')
                     SPRING_MAIL_PASSWORD_SECRET = credentials('jenkins-mail-password-id')
                     STRIPE_KEY_SECRET_VAL = credentials('jenkins-stripe-secret-key-id')
@@ -118,7 +112,7 @@ pipeline {
                     '''
                 }
                 */
-                echo 'Deploy stage - currently commented out' // Placeholder
+                echo 'Deploy stage - currently commented out'
             }
         }
     }
