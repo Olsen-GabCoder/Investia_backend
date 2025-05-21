@@ -5,8 +5,8 @@ pipeline {
 
     environment {
         DOCKER_IMAGE_NAME = "tonnomdutilisateur/investia-app" // Ex: 'johndoe/investia' ou URL registry privé
-        // DOCKER_CREDENTIALS_ID = 'dockerhub-credentials' // ID des credentials Docker dans Jenkins si registry privé/DockerHub
-        // JENKINS_MAVEN_SETTINGS_CONFIG_ID = 'maven-settings' // Si tu as un fichier settings.xml géré par Jenkins
+        // DOCKER_CREDENTIALS_ID = 'dockerhub-credentials'
+        // JENKINS_MAVEN_SETTINGS_CONFIG_ID = 'maven-settings'
     }
 
     tools {
@@ -32,19 +32,22 @@ pipeline {
         stage('Build with Maven') {
             steps {
                 echo 'Building the application (Maven)...'
-                sh "${tool 'MAVEN_HOME'}/bin/mvn clean package -DskipTests -B"
+                // CORRECTION: Utiliser bat pour Windows
+                // Assurer que les chemins sont corrects pour Windows si MAVEN_HOME contient des backslashes
+                // La variable d'outil MAVEN_HOME devrait donner le chemin correct.
+                bat "\"${tool 'MAVEN_HOME'}\\bin\\mvn.cmd\" clean package -DskipTests -B"
             }
         }
 
         stage('Test with Maven') {
             steps {
                 echo 'Running tests (Maven)...'
-                sh "${tool 'MAVEN_HOME'}/bin/mvn test -B"
+                // CORRECTION: Utiliser bat pour Windows
+                bat "\"${tool 'MAVEN_HOME'}\\bin\\mvn.cmd\" test -B"
             }
             post {
                 always {
                     echo 'Publishing test results...'
-                    // CORRECTION POUR JUNIT:
                     junit allowEmptyResults: true, testResults: 'target/surefire-reports/**/*.xml'
                 }
             }
@@ -54,6 +57,7 @@ pipeline {
             steps {
                 echo "Building Docker image: ${DOCKER_IMAGE_NAME}:${env.BUILD_NUMBER}"
                 script {
+                    // Docker build devrait fonctionner sur Windows si Docker Desktop est configuré pour utiliser le backend WSL2 ou Hyper-V
                     def dockerImage = docker.build("${DOCKER_IMAGE_NAME}:${env.BUILD_NUMBER}", "--pull -f Dockerfile .")
                     if (env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'master') {
                         dockerImage.tag("${DOCKER_IMAGE_NAME}", "latest")
@@ -62,19 +66,14 @@ pipeline {
             }
         }
 
-        // CORRECTION: Ajout d'un bloc 'steps' même si commenté
         stage('Push Docker Image') {
             steps {
-                // Décommente et configure si tu as un Docker Registry (Docker Hub, GitLab, ECR, etc.)
-                // Nécessite DOCKER_CREDENTIALS_ID défini dans environment et configuré dans Jenkins
                 /*
                 when {
-                    // Pousse uniquement pour certaines branches, ex: main/master
-                    // ou si c'est un tag Git
                     anyOf { branch 'main'; branch 'master'; tag '*' }
                 }
                 echo "Pushing Docker image ${DOCKER_IMAGE_NAME}:${env.BUILD_NUMBER} and potentially :latest"
-                docker.withRegistry('https://index.docker.io/v1/', DOCKER_CREDENTIALS_ID) { // Pour Docker Hub
+                docker.withRegistry('https://index.docker.io/v1/', DOCKER_CREDENTIALS_ID) {
                     docker.image("${DOCKER_IMAGE_NAME}:${env.BUILD_NUMBER}").push()
                     if (env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'master') {
                         docker.image("${DOCKER_IMAGE_NAME}:latest").push()
@@ -84,14 +83,12 @@ pipeline {
                     }
                 }
                 */
-                echo 'Push Docker Image stage - currently commented out' // Placeholder
+                echo 'Push Docker Image stage - currently commented out'
             }
         }
 
-        // CORRECTION: Ajout d'un bloc 'steps' même si commenté
         stage('Deploy') {
             steps {
-                // Décommente et adapte à ton environnement de déploiement
                 /*
                 when {
                     anyOf { branch 'main'; branch 'master' }
@@ -102,36 +99,43 @@ pipeline {
                     STRIPE_KEY_SECRET_VAL = credentials('jenkins-stripe-secret-key-id')
                 }
                 echo 'Deploying application...'
+                // Pour le déploiement SSH depuis Windows, tu auras besoin d'un client SSH
+                // ou d'utiliser des plugins Jenkins qui gèrent cela, ou de configurer OpenSSH pour Windows.
+                // L'exemple ci-dessous suppose un environnement de type Unix sur le serveur distant.
                 sshagent(['your-ssh-credentials-id']) {
-                    sh '''
-                        ssh -o StrictHostKeyChecking=no user@your-server.com "
-                            set -e;
-                            echo '--- Logging into deployment server ---';
-                            cd /path/to/your/app-deployment || exit 1;
-
-                            echo '--- Creating/Updating .env file for docker-compose ---';
-                            echo MYSQL_DATABASE=investiadb > .env
-                            echo MYSQL_USER=investiauser >> .env
-                            echo MYSQL_PASSWORD=${env.MYSQL_PASSWORD_SECRET_VALUE_FROM_JENKINS} >> .env
-                            echo MYSQL_ROOT_PASSWORD=${env.MYSQL_ROOT_PASSWORD_SECRET_VALUE_FROM_JENKINS} >> .env
-                            echo SPRING_MAIL_USERNAME=${env.SPRING_MAIL_USERNAME_SECRET} >> .env
-                            echo SPRING_MAIL_PASSWORD=${env.SPRING_MAIL_PASSWORD_SECRET} >> .env
-                            echo STRIPE_KEY_SECRET=${env.STRIPE_KEY_SECRET_VAL} >> .env
-
-                            echo '--- Pulling latest application image ---';
-                            docker-compose -f docker-compose.prod.yml pull app;
-
-                            echo '--- Restarting application service ---';
-                            docker-compose -f docker-compose.prod.yml up -d --force-recreate app;
-
-                            echo '--- Cleaning up old Docker images (optional) ---';
-                            docker image prune -f;
-                            echo '--- Deployment finished ---';
-                        "
+                    // 'bat' ici si la commande est exécutée localement pour initier quelque chose
+                    // mais la commande envoyée via SSH sera exécutée sur le serveur distant
+                    bat '''
+                        rem Cette partie est un exemple et nécessitera une configuration SSH pour Windows
+                        rem ou l'utilisation d'un plugin comme "Publish Over SSH"
+                        echo "Simulating SSH deployment commands..."
+                        rem ssh -o StrictHostKeyChecking=no user@your-server.com "cd /path/to/app && ./deploy-script.sh"
                     '''
+                    // Exemple de ce qui serait exécuté sur le serveur distant (script Unix) :
+                    // sh '''
+                    //     ssh -o StrictHostKeyChecking=no user@your-server.com "
+                    //         set -e;
+                    //         echo '--- Logging into deployment server ---';
+                    //         cd /path/to/your/app-deployment || exit 1;
+                    //
+                    //         echo '--- Creating/Updating .env file for docker-compose ---';
+                    //         echo MYSQL_DATABASE=investiadb > .env
+                    //         # ... (autres variables .env)
+                    //
+                    //         echo '--- Pulling latest application image ---';
+                    //         docker-compose -f docker-compose.prod.yml pull app;
+                    //
+                    //         echo '--- Restarting application service ---';
+                    //         docker-compose -f docker-compose.prod.yml up -d --force-recreate app;
+                    //
+                    //         echo '--- Cleaning up old Docker images (optional) ---';
+                    //         docker image prune -f;
+                    //         echo '--- Deployment finished ---';
+                    //     "
+                    // '''
                 }
                 */
-                echo 'Deploy stage - currently commented out' // Placeholder
+                echo 'Deploy stage - currently commented out'
             }
         }
     }
