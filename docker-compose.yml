@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: investia-app
+    ports:
+      - "8089:8089" # Mappe le port 8089 du conteneur au port 8089 de l'hôte
+    environment:
+      # Profil Spring actif dans cet environnement Docker Compose
+      - SPRING_PROFILES_ACTIVE=docker # ou dev, prod
+      # Surcharge des variables d'environnement définies dans le Dockerfile
+      # (nécessaire pour les secrets ou les configurations spécifiques à cet environnement)
+      - SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/investiadb?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=investiauser
+      - SPRING_DATASOURCE_PASSWORD=secretpassword # Mot de passe pour l'utilisateur 'investiauser' de la BDD
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update # ou validate pour la prod
+
+      # Secrets à fournir (ces valeurs sont des exemples, NE PAS UTILISER EN PRODUCTION TEL QUEL)
+      - SPRING_MAIL_USERNAME=your-email@example.com
+      - SPRING_MAIL_PASSWORD=yourEmailPassword
+      - STRIPE_KEY_SECRET=sk_test_YOUR_ACTUAL_STRIPE_TEST_SECRET_OR_PROVIDED_BY_JENKINS_FOR_PROD
+
+      # Le port et le context path sont déjà dans le Dockerfile via ENV,
+      # mais on peut les surcharger ici si besoin.
+      # - SERVER_PORT=8089
+      # - SERVER_SERVLET_CONTEXT_PATH=/investiaMVC
+    depends_on:
+      db:
+        condition: service_healthy # Attend que la BDD soit saine
+    networks:
+      - investia-network
+
+  db:
+    image: mysql:8.0 # Utilisation de MySQL version 8.0
+    container_name: investia-mysql-db
+    ports:
+      - "3307:3306" # Mappe le port 3306 de MySQL à 3307 sur l'hôte (pour éviter conflit si MySQL local)
+    environment:
+      - MYSQL_DATABASE=investiadb
+      - MYSQL_USER=investiauser         # Création d'un utilisateur dédié
+      - MYSQL_PASSWORD=secretpassword     # Mot de passe pour cet utilisateur
+      - MYSQL_ROOT_PASSWORD=verysecretrootpassword # Mot de passe root pour MySQL (obligatoire)
+    volumes:
+      - investia_mysql_data:/var/lib/mysql # Persistance des données MySQL
+      # Optionnel: Pour initialiser la BDD avec des scripts SQL au premier démarrage
+      # - ./init-db:/docker-entrypoint-initdb.d
+    networks:
+      - investia-network
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost", "-u", "$${MYSQL_USER}", "-p$${MYSQL_PASSWORD}"]
+      # Ou plus simple si l'utilisateur root est utilisable pour le ping:
+      # test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost", "-u", "root", "-p$${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s # Donne plus de temps à MySQL pour démarrer avant de commencer les healthchecks
+
+volumes:
+  investia_mysql_data: # Volume pour les données MySQL
+
+networks:
+  investia-network:
+    driver: bridge
