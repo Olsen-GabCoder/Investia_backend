@@ -1,15 +1,18 @@
-// Jenkinsfile (Declarative Pipeline) - Version avec skip total des tests
+// Jenkinsfile (Declarative Pipeline) - Version MINIMALE : Checkout + Build Maven
 
 pipeline {
-    agent any
+    agent any // Ou un agent spécifique avec Maven/Java installé
 
+    // La variable DOCKER_IMAGE_NAME n'est plus nécessaire pour l'instant
+    /*
     environment {
         DOCKER_IMAGE_NAME = "tonnomdutilisateur/investia-app"
     }
+    */
 
     tools {
-        maven 'MAVEN_HOME'
-        jdk 'JDK_17'
+        maven 'MAVEN_HOME' // Nom de la configuration Maven dans "Global Tool Configuration" de Jenkins
+        jdk 'JDK_17'       // Nom de la configuration JDK dans "Global Tool Configuration" de Jenkins
     }
 
     stages {
@@ -27,16 +30,17 @@ pipeline {
             }
         }
 
-        stage('Build with Maven (Skipping All Tests)') { // Nom du stage mis à jour
+        stage('Build with Maven (Skipping All Tests)') {
             steps {
                 echo 'Building the application (Maven) - Skipping test compilation and execution...'
                 // Utilisation de -Dmaven.test.skip=true pour sauter la compilation ET l'exécution des tests
+                // L'option -U force la mise à jour des dépendances
                 bat "\"${tool 'MAVEN_HOME'}\\bin\\mvn.cmd\" -U clean package -Dmaven.test.skip=true -B"
             }
         }
 
-        // L'ancien stage 'Test with Maven' est toujours commenté/supprimé
-
+        // ÉTAPES DOCKER SUPPRIMÉES/COMMENTÉES
+        /*
         stage('Build Docker Image') {
             steps {
                 echo "Building Docker image: ${DOCKER_IMAGE_NAME}:${env.BUILD_NUMBER}"
@@ -60,18 +64,21 @@ pipeline {
                 echo 'Deploy stage - currently commented out'
             }
         }
+        */
     }
 
     post {
         always {
             echo 'Pipeline finished.'
-            cleanWs()
+            cleanWs() // Nettoie l'espace de travail Jenkins après le build
         }
         success {
             echo 'Pipeline successful!'
+            // Notifier le succès (ex: mail, Slack)
         }
         failure {
             echo 'Pipeline failed.'
+            // Notifier l'échec
         }
     }
 }
